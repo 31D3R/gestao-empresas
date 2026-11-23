@@ -1,0 +1,245 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Perfil {
+  ADMIN
+  CONTADOR
+  MARKETING
+  SOCIO
+}
+
+model Usuario {
+  id        String   @id @default(cuid())
+  nome      String
+  email     String   @unique
+  senhaHash String
+  perfil    Perfil   @default(SOCIO)
+  ativo     Boolean  @default(true)
+  socioId   String?  @unique
+  socio     Socio?   @relation(fields: [socioId], references: [id])
+  criadoEm  DateTime @default(now())
+  consultas Consulta[]
+}
+
+model Empresa {
+  id                String    @id @default(cuid())
+  cnpj              String    @unique
+  razaoSocial       String
+  nomeFantasia      String?
+  situacaoCadastral String?
+  dataAbertura      DateTime?
+  naturezaJuridica  String?
+  porte             String?
+  regimeTributario  String?   // Simples, Presumido, Real, MEI
+  capitalSocial     Decimal?  @db.Decimal(14, 2)
+  cnaePrincipal     String?
+  cnaesSecundarios  Json?
+  email             String?
+  telefone          String?
+  cep               String?
+  logradouro        String?
+  numero            String?
+  complemento       String?
+  bairro            String?
+  municipio         String?
+  uf                String?
+  inscricaoEstadual String?
+  inscricaoMunicipal String?
+  siteUrl           String?
+  instagram         String?
+  dadosReceita      Json?
+  receitaAtualizadaEm DateTime?
+  observacoes       String?
+  criadoEm          DateTime  @default(now())
+  atualizadoEm      DateTime  @updatedAt
+
+  socios       EmpresaSocio[]
+  consultas    Consulta[]
+  certidoes    Certidao[]
+  contas       ContaFinanceira[]
+  cartoes      Cartao[]
+  emprestimos  Emprestimo[]
+  lancamentos  Lancamento[]
+}
+
+model Socio {
+  id              String    @id @default(cuid())
+  nome            String
+  cpf             String    @unique
+  rg              String?
+  dataNascimento  DateTime?
+  estadoCivil     String?
+  profissao       String?
+  nomeMae         String?
+  email           String?
+  telefone        String?
+  cep             String?
+  logradouro      String?
+  numero          String?
+  complemento     String?
+  bairro          String?
+  municipio       String?
+  uf              String?
+  rendaMensal     Decimal?  @db.Decimal(14, 2)
+  // LGPD: consentimento para consulta de crédito
+  consentimentoConsulta   Boolean   @default(false)
+  consentimentoEm         DateTime?
+  consentimentoTexto      String?
+  // Resultado resumido da última consulta de crédito
+  situacaoCredito   String?   // LIMPO | RESTRICAO | NAO_CONSULTADO
+  scoreCredito      Int?
+  creditoAtualizadoEm DateTime?
+  observacoes     String?
+  criadoEm        DateTime  @default(now())
+  atualizadoEm    DateTime  @updatedAt
+
+  empresas  EmpresaSocio[]
+  consultas Consulta[]
+  usuario   Usuario?
+}
+
+model EmpresaSocio {
+  id            String   @id @default(cuid())
+  empresaId     String
+  socioId       String
+  qualificacao  String?  // Sócio-Administrador etc.
+  participacao  Decimal? @db.Decimal(5, 2) // %
+  dataEntrada   DateTime?
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  socio         Socio    @relation(fields: [socioId], references: [id], onDelete: Cascade)
+
+  @@unique([empresaId, socioId])
+}
+
+enum TipoConsulta {
+  CNPJ_RECEITA
+  CPF_CREDITO
+  CERTIDAO_FEDERAL
+  CERTIDAO_FGTS
+  CERTIDAO_TRABALHISTA
+  CERTIDAO_ESTADUAL
+  CERTIDAO_MUNICIPAL
+}
+
+// Toda consulta paga fica registrada (auditoria + custo)
+model Consulta {
+  id         String       @id @default(cuid())
+  tipo       TipoConsulta
+  provedor   String
+  documento  String
+  sucesso    Boolean
+  custo      Decimal      @default(0) @db.Decimal(10, 2)
+  resposta   Json?
+  erro       String?
+  empresaId  String?
+  socioId    String?
+  usuarioId  String?
+  empresa    Empresa?     @relation(fields: [empresaId], references: [id], onDelete: SetNull)
+  socio      Socio?       @relation(fields: [socioId], references: [id], onDelete: SetNull)
+  usuario    Usuario?     @relation(fields: [usuarioId], references: [id], onDelete: SetNull)
+  criadoEm   DateTime     @default(now())
+}
+
+enum TipoCertidao {
+  FEDERAL
+  FGTS
+  TRABALHISTA
+  ESTADUAL
+  MUNICIPAL
+}
+
+enum SituacaoCertidao {
+  NEGATIVA
+  POSITIVA_COM_EFEITO_NEGATIVA
+  POSITIVA
+  ERRO
+}
+
+model Certidao {
+  id         String           @id @default(cuid())
+  empresaId  String
+  tipo       TipoCertidao
+  situacao   SituacaoCertidao
+  emitidaEm  DateTime
+  validade   DateTime?
+  codigo     String?
+  arquivoUrl String?
+  empresa    Empresa          @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  criadoEm   DateTime         @default(now())
+}
+
+// ---------- Financeiro (Fase 2) ----------
+
+model ContaFinanceira {
+  id           String   @id @default(cuid())
+  empresaId    String
+  nome         String   // ex.: Itaú PJ 1234
+  banco        String?
+  agencia      String?
+  numero       String?
+  saldoInicial Decimal  @default(0) @db.Decimal(14, 2)
+  ativa        Boolean  @default(true)
+  empresa      Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  lancamentos  Lancamento[]
+  criadoEm     DateTime @default(now())
+}
+
+model Cartao {
+  id            String   @id @default(cuid())
+  empresaId     String
+  nome          String
+  bandeira      String?
+  banco         String?
+  final         String?
+  limite        Decimal  @db.Decimal(14, 2)
+  diaFechamento Int
+  diaVencimento Int
+  ativo         Boolean  @default(true)
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  lancamentos   Lancamento[]
+  criadoEm      DateTime @default(now())
+}
+
+model Emprestimo {
+  id            String   @id @default(cuid())
+  empresaId     String
+  instituicao   String
+  modalidade    String?  // capital de giro, Pronampe, cheque especial...
+  valorContratado Decimal @db.Decimal(14, 2)
+  taxaMensal    Decimal? @db.Decimal(6, 3)
+  parcelas      Int
+  valorParcela  Decimal  @db.Decimal(14, 2)
+  primeiroVencimento DateTime
+  parcelasPagas Int      @default(0)
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  criadoEm      DateTime @default(now())
+}
+
+enum TipoLancamento {
+  RECEITA
+  DESPESA
+}
+
+model Lancamento {
+  id          String         @id @default(cuid())
+  empresaId   String
+  tipo        TipoLancamento
+  descricao   String
+  categoria   String
+  valor       Decimal        @db.Decimal(14, 2)
+  data        DateTime
+  vencimento  DateTime?
+  pago        Boolean        @default(true)
+  contaId     String?
+  cartaoId    String?
+  empresa     Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  conta       ContaFinanceira? @relation(fields: [contaId], references: [id], onDelete: SetNull)
+  cartao      Cartao?        @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
+  criadoEm    DateTime       @default(now())
+}
