@@ -51,7 +51,7 @@ export async function encerrarSessao() {
 export async function exigir(...perfis: Perfil[]): Promise<Sessao> {
   const s = await sessaoAtual();
   if (!s) redirect("/login");
-  if (perfis.length && !perfis.includes(s.perfil)) redirect("/");
+  if (perfis.length && !perfis.includes(s.perfil)) redirect(s.perfil === "SOCIO" ? "/relatorios" : "/");
   return s;
 }
 

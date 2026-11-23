@@ -6,6 +6,8 @@ import { brl, dataBR, formatarCNPJ, formatarCPF } from "@/lib/documentos";
 import { consultarCNPJ, vincularSocio, desvincularSocio } from "@/app/actions/empresas";
 import { FormEmpresa } from "@/components/FormEmpresa";
 import { Certidoes } from "@/components/Certidoes";
+import { PainelSaude } from "@/components/PainelSaude";
+import { saudeEmpresa } from "@/lib/saude";
 import type { SocioQSA } from "@/lib/consultas";
 
 export default async function Empresa({ params }: { params: Promise<{ id: string }> }) {
@@ -16,6 +18,7 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
     include: { socios: { include: { socio: true } }, consultas: { orderBy: { criadoEm: "desc" }, take: 10 }, certidoes: true },
   });
   if (!e) notFound();
+  const saude = await saudeEmpresa(e.id);
   const todosSocios = await db.socio.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, cpf: true } });
   const qsa = ((e.dadosReceita as { qsa?: SocioQSA[] } | null)?.qsa ?? []) as SocioQSA[];
   const cnaes = (e.cnaesSecundarios as { codigo: string; descricao: string }[] | null) ?? [];
@@ -59,6 +62,8 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           <FormEmpresa empresa={JSON.parse(JSON.stringify({ ...e, capitalSocial: e.capitalSocial?.toString() ?? null }))} />
         </div>
       </div>
+
+      <PainelSaude saude={saude} />
 
       <Certidoes empresaId={e.id} certidoes={e.certidoes} />
 

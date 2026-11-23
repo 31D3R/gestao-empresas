@@ -6,13 +6,14 @@ const MENU_EQUIPE = [
   { href: "/", rotulo: "Painel" },
   { href: "/empresas", rotulo: "Empresas" },
   { href: "/socios", rotulo: "Sócios" },
+  { href: "/relatorios", rotulo: "Relatórios" },
   { href: "/consultas", rotulo: "Consultas e custos" },
 ];
 const MENU_SOCIO = [{ href: "/relatorios", rotulo: "Relatórios" }];
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const s = await exigir();
-  const menu = s.perfil === "SOCIO" ? MENU_SOCIO : MENU_EQUIPE;
+  const menu = s.perfil === "SOCIO" ? MENU_SOCIO : s.perfil === "ADMIN" ? [...MENU_EQUIPE, { href: "/usuarios", rotulo: "Usuários" }] : MENU_EQUIPE;
   return (
     <div className="min-h-screen md:flex">
       <aside className="border-b border-slate-200 bg-white md:min-h-screen md:w-60 md:border-b-0 md:border-r">
