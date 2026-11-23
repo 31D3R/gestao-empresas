@@ -5,6 +5,7 @@ import { exigir, EQUIPE } from "@/lib/auth";
 import { brl, dataBR, formatarCNPJ, formatarCPF } from "@/lib/documentos";
 import { consultarCNPJ, vincularSocio, desvincularSocio } from "@/app/actions/empresas";
 import { FormEmpresa } from "@/components/FormEmpresa";
+import { Certidoes } from "@/components/Certidoes";
 import type { SocioQSA } from "@/lib/consultas";
 
 export default async function Empresa({ params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +13,7 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
   const { id } = await params;
   const e = await db.empresa.findUnique({
     where: { id },
-    include: { socios: { include: { socio: true } }, consultas: { orderBy: { criadoEm: "desc" }, take: 10 } },
+    include: { socios: { include: { socio: true } }, consultas: { orderBy: { criadoEm: "desc" }, take: 10 }, certidoes: true },
   });
   if (!e) notFound();
   const todosSocios = await db.socio.findMany({ orderBy: { nome: "asc" }, select: { id: true, nome: true, cpf: true } });
@@ -58,6 +59,8 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           <FormEmpresa empresa={JSON.parse(JSON.stringify({ ...e, capitalSocial: e.capitalSocial?.toString() ?? null }))} />
         </div>
       </div>
+
+      <Certidoes empresaId={e.id} certidoes={e.certidoes} />
 
       <div className="card space-y-4">
         <h2 className="font-semibold">Sócios</h2>

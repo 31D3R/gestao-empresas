@@ -2,6 +2,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { exigir, EQUIPE } from "@/lib/auth";
 import { brl } from "@/lib/documentos";
+import { TIPOS_CERTIDAO, statusCertidao, ultimasPorTipo } from "@/lib/certidoes";
 
 export default async function Painel() {
   await exigir(...EQUIPE);
@@ -14,6 +15,12 @@ export default async function Painel() {
     db.consulta.aggregate({ _sum: { custo: true }, where: { criadoEm: { gte: inicioMes } } }),
     db.empresa.findMany({ where: { NOT: { situacaoCadastral: "ATIVA" }, situacaoCadastral: { not: null } }, select: { id: true, razaoSocial: true, situacaoCadastral: true } }),
   ]);
+  const empresasCert = await db.empresa.findMany({ select: { id: true, razaoSocial: true, nomeFantasia: true, certidoes: true } });
+  const alertasCert = empresasCert.flatMap((e) => {
+    const ult = ultimasPorTipo(e.certidoes);
+    return TIPOS_CERTIDAO.map((t) => ({ e, t, st: statusCertidao(ult.get(t.tipo)) })).filter((x) => x.st === "VENCIDA" || x.st === "VENCENDO" || x.st === "PENDENCIA");
+  });
+  const semCertidao = empresasCert.filter((e) => e.certidoes.length === 0).length;
   const cards = [
     { rotulo: "Empresas", valor: empresas, href: "/empresas" },
     { rotulo: "Sócios", valor: socios, href: "/socios" },
@@ -36,9 +43,13 @@ export default async function Painel() {
         {inativas.map((e) => (
           <p key={e.id} className="text-sm">⚠️ <Link className="underline" href={`/empresas/${e.id}`}>{e.razaoSocial}</Link> está com situação cadastral <strong>{e.situacaoCadastral}</strong> na Receita.</p>
         ))}
+        {alertasCert.map(({ e, t, st }) => (
+          <p key={e.id + t.tipo} className="text-sm">{st === "VENCENDO" ? "🟡" : "🔴"} Certidão {t.nome} de <Link className="underline" href={`/empresas/${e.id}`}>{e.nomeFantasia || e.razaoSocial}</Link> {st === "VENCIDA" ? "está vencida" : st === "VENCENDO" ? "vence em menos de 15 dias" : "tem pendência"}. Banco e licitação pedem certidões em dia.</p>
+        ))}
+        {semCertidao > 0 && <p className="text-sm">📄 {semCertidao} empresa(s) sem nenhuma certidão registrada.</p>}
         {semConsent > 0 && <p className="text-sm">📝 {semConsent} sócio(s) sem consentimento LGPD. Sem ele não dá para consultar o nome.</p>}
         {restricao > 0 && <p className="text-sm">🔴 {restricao} sócio(s) com restrição no CPF. Isso pesa na análise de crédito da empresa no banco.</p>}
-        {!inativas.length && !semConsent && !restricao && <p className="text-sm text-slate-500">Nada pendente por enquanto.</p>}
+        {!inativas.length && !semConsent && !restricao && !alertasCert.length && !semCertidao && <p className="text-sm text-slate-500">Nada pendente por enquanto.</p>}
       </div>
     </div>
   );
