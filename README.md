@@ -4,7 +4,7 @@ Sistema web (instalável no celular como app) para gestão de empresas e sócios
 
 ## Rodar localmente
 ```bash
-cp .env.example .env   # ajuste POSTGRES_* e AUTH_SECRET
+cp .env.example .env   # ajuste DATABASE_URL e AUTH_SECRET
 npm install
 npx prisma migrate deploy
 npm run db:seed        # cria admin@empresa.com / trocar123
@@ -13,7 +13,7 @@ npm run dev
 
 ## Publicar sem custo (teste)
 1. Crie o repositório no GitHub e envie o código.
-2. **Vercel** (plano Hobby): importe o repositório. Em Storage > Create Database > Supabase (Free) o banco é ligado automaticamente (variáveis `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_JWT_SECRET`). Opcional: `CNPJ_PROVIDER=brasilapi`.
+2. **Vercel** (plano Hobby): importe o repositório e adicione o banco **Prisma Postgres** (gratuito) nas integrações; ele cria `DATABASE_URL`. Opcional: `AUTH_SECRET` (sem ele, a sessão usa um segredo derivado da `DATABASE_URL`).
 3. O build (`vercel-build`) aplica as migrações. No primeiro acesso, a tela de login pede para criar o administrador.
 
 ## Consultas (provedores plugáveis)
