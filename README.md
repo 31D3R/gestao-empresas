@@ -4,7 +4,7 @@ Sistema web (instalável no celular como app) para gestão de empresas e sócios
 
 ## Rodar localmente
 ```bash
-cp .env.example .env   # ajuste DATABASE_URL e AUTH_SECRET
+cp .env.example .env   # ajuste POSTGRES_* e AUTH_SECRET
 npm install
 npx prisma migrate deploy
 npm run db:seed        # cria admin@empresa.com / trocar123
@@ -12,9 +12,9 @@ npm run dev
 ```
 
 ## Publicar sem custo (teste)
-1. **Supabase** (supabase.com, plano Free): crie um projeto e copie a connection string (Settings > Database > Connection string, modo "Session").
-2. **Vercel** (vercel.com, plano Hobby): importe este repositório e defina as variáveis `DATABASE_URL`, `AUTH_SECRET`, `CNPJ_PROVIDER=brasilapi`, `CREDITO_PROVIDER=mock`.
-3. Rode `npx prisma migrate deploy` e `npm run db:seed` apontando para o banco do Supabase.
+1. Crie o repositório no GitHub e envie o código.
+2. **Vercel** (plano Hobby): importe o repositório. Em Storage > Create Database > Supabase (Free) o banco é ligado automaticamente (variáveis `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `SUPABASE_JWT_SECRET`). Opcional: `CNPJ_PROVIDER=brasilapi`.
+3. O build (`vercel-build`) aplica as migrações. No primeiro acesso, a tela de login pede para criar o administrador.
 
 ## Consultas (provedores plugáveis)
 Ficam em `src/lib/consultas`. Cada consulta é registrada com provedor e custo (tela "Consultas e custos").

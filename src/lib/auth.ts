@@ -2,9 +2,10 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import type { Perfil } from "@prisma/client";
+import { segredoSessao } from "./segredo";
 
 const COOKIE = "sessao";
-const segredo = () => new TextEncoder().encode(process.env.AUTH_SECRET || "dev");
+const segredo = segredoSessao;
 
 export interface Sessao {
   id: string;

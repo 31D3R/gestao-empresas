@@ -1,12 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { segredoSessao } from "@/lib/segredo";
 
 export async function middleware(req: NextRequest) {
   const token = req.cookies.get("sessao")?.value;
   let ok = false;
   if (token) {
     try {
-      await jwtVerify(token, new TextEncoder().encode(process.env.AUTH_SECRET || "dev"));
+      await jwtVerify(token, segredoSessao());
       ok = true;
     } catch {}
   }

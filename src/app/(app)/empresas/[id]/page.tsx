@@ -33,7 +33,7 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           <h1 className="h1">{e.nomeFantasia || e.razaoSocial}</h1>
           <p className="text-sm text-slate-500">{e.razaoSocial} · {formatarCNPJ(e.cnpj)}</p>
         </div>
-        <form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form>
+        <div className="flex gap-2"><Link href={`/empresas/${e.id}/financeiro`} className="btn">Financeiro</Link><form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form></div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
