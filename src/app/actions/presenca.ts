@@ -350,10 +350,14 @@ export async function publicarVersao(versaoId: string): Promise<Estado> {
   try {
     await cpanel.enviarArquivos(v.dominio.nome, "img", v.dominio.imagens.map((i) => ({ nome: i.nome, tipo: i.tipo, dados: i.dados })));
     await cpanel.salvarArquivo(v.dominio.nome, "index.html", v.html);
+    await cpanel.forcarHttps(v.dominio.nome);
   } catch (err) {
     return { erro: erroDe(err) };
   }
   await db.versaoSite.update({ where: { id: versaoId }, data: { publicadaEm: new Date() } });
   revalidatePath(caminho(v.dominio.empresaId));
-  return { ok: true, msg: `Publicado em https://${v.dominio.nome}` };
+  const ssl = await cpanel.sslOk(v.dominio.nome);
+  return ssl
+    ? { ok: true, msg: `Publicado e conferido: https://${v.dominio.nome} abre com cadeado.` }
+    : { ok: true, msg: `Arquivos publicados, mas https://${v.dominio.nome} ainda não abre com cadeado (DNS ou SSL pendente). Não está no ar de verdade ainda.` };
 }

@@ -8,6 +8,8 @@ Entregue SEMPRE um único arquivo HTML completo (<!doctype html> ... </html>), r
 Estrutura padrão: topo com logotipo e menu, seção principal com chamada forte e botão de WhatsApp, serviços/produtos, diferenciais, sobre, depoimentos só se o cliente fornecer, contato com endereço, telefone, e-mail, mapa (iframe do Google Maps pelo endereço) e rodapé.
 Use as cores do logotipo quando houver. Use as imagens enviadas pelo caminho exato "img/NOME" informado. Não use imagens de terceiros.
 Inclua meta description, Open Graph e dados estruturados LocalBusiness (JSON-LD). Botão flutuante de WhatsApp se houver telefone.
+Estilo (regra do cliente, obrigatório): nada de "cara de IA". Proibido degradê, faixa de texto rolando (marquee/ticker), grade de cards arredondados genéricos com ícone, emojis como ícone e frases clichê ("soluções inovadoras", "excelência"). Busque um visual moderno de agência: tipografia forte, bom espaçamento, fotos reais grandes, cores sólidas da marca, navegação simples e óbvia, menu fixo enxuto e botões claros.
+Nunca escreva "sem juros" em parcelamento.
 Não invente preços, números ou depoimentos. Responda apenas com o HTML, sem explicações.`;
 
 export async function gerarHtml(opts: { pedido: string; dadosEmpresa: string; imagens: ImagemRef[]; htmlAnterior?: string | null }) {

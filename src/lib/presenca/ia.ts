@@ -27,7 +27,7 @@ export async function lerSite(url: string) {
 export async function gerarPosts(opts: { empresa: string; site: string; texto: string; imagens: string[]; quantidade: number; instrucoes?: string }): Promise<IdeiaPost[]> {
   if (!iaConfigurada()) throw new Error("IA não configurada: falta ANTHROPIC_API_KEY na Vercel.");
   const prompt = `Você é social media de uma empresa brasileira. Crie ${opts.quantidade} posts para o Instagram da empresa "${opts.empresa}" com base no conteúdo do site ${opts.site}.
-Regras: português do Brasil, tom profissional e próximo, cada legenda com gancho na primeira linha, 2 a 4 parágrafos curtos, chamada para ação (WhatsApp/site) e 5 a 10 hashtags locais e do nicho no final. Varie os temas (serviços, diferenciais, dúvidas comuns, bastidores, datas comemorativas próximas). Não invente preços nem promessas que não estejam no site.
+Regras: português do Brasil, tom profissional e próximo, cada legenda com gancho na primeira linha, 2 a 4 parágrafos curtos, chamada para ação (WhatsApp/site) e 5 a 10 hashtags locais e do nicho no final. Varie os temas (serviços, diferenciais, dúvidas comuns, bastidores, datas comemorativas próximas). Não invente preços nem promessas que não estejam no site. Nunca escreva "sem juros". Nada de clichês de IA ("soluções inovadoras", "excelência", excesso de emojis).
 ${opts.instrucoes ? `Instruções extras: ${opts.instrucoes}\n` : ""}Para cada post escolha, se fizer sentido, uma imagem da lista (copie a URL exata) ou deixe null.
 Imagens do site:\n${opts.imagens.join("\n") || "(nenhuma)"}
 Conteúdo do site:\n${opts.texto}

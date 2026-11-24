@@ -121,3 +121,27 @@ export async function enviarArquivos(dominio: string, subpasta: string, arquivos
   arquivos.forEach((a, i) => f.set(`file-${i + 1}`, new Blob([new Uint8Array(a.dados)], { type: a.tipo }), a.nome));
   return postar(`${base()}/execute/Fileman/upload_files`, f);
 }
+
+const HTACCESS_HTTPS = `# Força https (gerado pelo sistema de gestão)
+RewriteEngine On
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [L,R=301]
+`;
+
+/** Garante https forçado: cria .htaccess só se o site ainda não tiver um. */
+export async function forcarHttps(dominio: string) {
+  const arquivos = await uapi<{ file: string }[]>("Fileman", "list_files", { dir: pastaSite(dominio), show_hidden: 1 });
+  if (arquivos.some((a) => a.file === ".htaccess")) return false;
+  await salvarArquivo(dominio, ".htaccess", HTACCESS_HTTPS);
+  return true;
+}
+
+/** Confere se o site responde em https com certificado válido. */
+export async function sslOk(dominio: string) {
+  try {
+    const r = await fetch(`https://${dominio}/`, { method: "HEAD", redirect: "manual", signal: AbortSignal.timeout(10000), cache: "no-store" });
+    return r.status < 500;
+  } catch {
+    return false;
+  }
+}
