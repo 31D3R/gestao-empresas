@@ -6,6 +6,7 @@ const MENU_EQUIPE = [
   { href: "/", rotulo: "Painel" },
   { href: "/empresas", rotulo: "Empresas" },
   { href: "/socios", rotulo: "Sócios" },
+  { href: "/marketing", rotulo: "Marketing" },
   { href: "/relatorios", rotulo: "Relatórios" },
   { href: "/consultas", rotulo: "Consultas e custos" },
 ];

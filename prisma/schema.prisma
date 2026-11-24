@@ -66,6 +66,9 @@ model Empresa {
   cartoes      Cartao[]
   emprestimos  Emprestimo[]
   lancamentos  Lancamento[]
+  dominios     Dominio[]
+  instagramConta ContaInstagram?
+  postagens    Postagem[]
 }
 
 model Socio {
@@ -242,4 +245,65 @@ model Lancamento {
   conta       ContaFinanceira? @relation(fields: [contaId], references: [id], onDelete: SetNull)
   cartao      Cartao?        @relation(fields: [cartaoId], references: [id], onDelete: SetNull)
   criadoEm    DateTime       @default(now())
+}
+
+// ---------- Presença digital ----------
+
+enum StatusDominio {
+  DISPONIVEL
+  PEDIDO        // compra solicitada, aguardando registro
+  REGISTRADO    // domínio é nosso, ainda sem hospedagem
+  HOSPEDADO     // site criado no Plano M
+}
+
+model Dominio {
+  id           String        @id @default(cuid())
+  empresaId    String
+  nome         String        @unique
+  status       StatusDominio @default(PEDIDO)
+  registrador  String?
+  expiraEm     DateTime?
+  hospedadoEm  DateTime?
+  pasta        String?
+  observacao   String?
+  criadoEm     DateTime      @default(now())
+  empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+}
+
+model ContaInstagram {
+  id            String   @id @default(cuid())
+  empresaId     String   @unique
+  igUserId      String
+  usuario       String?
+  tokenCifrado  String
+  tokenExpiraEm DateTime?
+  conectadoEm   DateTime @default(now())
+  empresa       Empresa  @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+}
+
+enum StatusPostagem {
+  RASCUNHO
+  AGENDADA
+  PUBLICANDO
+  PUBLICADA
+  ERRO
+}
+
+model Postagem {
+  id            String         @id @default(cuid())
+  empresaId     String
+  tema          String?
+  legenda       String
+  imagem        Bytes?
+  imagemTipo    String?
+  imagemUrl     String?
+  agendadaPara  DateTime?
+  status        StatusPostagem @default(RASCUNHO)
+  erro          String?
+  igMediaId     String?
+  publicadaEm   DateTime?
+  criadoEm      DateTime       @default(now())
+  empresa       Empresa        @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+
+  @@index([status, agendadaPara])
 }

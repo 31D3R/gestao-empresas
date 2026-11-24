@@ -23,3 +23,15 @@ Ficam em `src/lib/consultas`. Cada consulta é registrada com provedor e custo (
 
 ## Perfis
 ADMIN, CONTADOR, MARKETING (equipe) e SOCIO (somente relatórios das próprias empresas).
+
+## Site, e-mails e Instagram (menu Marketing)
+
+Variáveis na Vercel (Settings > Environment Variables):
+
+| Variável | Para quê |
+|---|---|
+| `CPANEL_HOST` = `br132.hostgator.com.br`, `CPANEL_USER` = `elderc98`, `CPANEL_TOKEN` | criar hospedagem e e-mails no Plano M (token em cPanel > Segurança > Gerenciar tokens de API) |
+| `IG_APP_ID`, `IG_APP_SECRET` | conectar Instagram (app da Meta com "API do Instagram com login do Instagram"; URL de retorno `https://gestao-empresas-eight.vercel.app/api/instagram/retorno`) |
+| `ANTHROPIC_API_KEY` | gerar posts com IA a partir do site |
+
+Publicação agendada: `GET /api/cron/instagram` publica os posts cuja hora já passou. A Vercel chama 1x/dia (plano grátis); para publicar na hora certa, um cron do cPanel a cada 15 min: `curl -s https://gestao-empresas-eight.vercel.app/api/cron/instagram`.

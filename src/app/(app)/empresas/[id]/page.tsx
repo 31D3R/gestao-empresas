@@ -38,7 +38,7 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           <h1 className="h1">{e.nomeFantasia || e.razaoSocial}</h1>
           <p className="text-sm text-slate-500">{e.razaoSocial} · {formatarCNPJ(e.cnpj)}</p>
         </div>
-        <div className="flex gap-2"><Link href={`/empresas/${e.id}/financeiro`} className="btn">Financeiro</Link><form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form>{sessao.perfil === "ADMIN" && <BotaoExcluir acao={excluirEmpresa.bind(null, e.id)} aviso={`Excluir ${e.razaoSocial}? Todo o financeiro, as certidões e os vínculos com sócios desta empresa serão apagados. Os cadastros dos sócios continuam. Não dá para desfazer.`} />}</div>
+        <div className="flex gap-2"><Link href={`/empresas/${e.id}/financeiro`} className="btn">Financeiro</Link><Link href={`/empresas/${e.id}/presenca`} className="btn">Site e Instagram</Link><form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form>{sessao.perfil === "ADMIN" && <BotaoExcluir acao={excluirEmpresa.bind(null, e.id)} aviso={`Excluir ${e.razaoSocial}? Todo o financeiro, as certidões e os vínculos com sócios desta empresa serão apagados. Os cadastros dos sócios continuam. Não dá para desfazer.`} />}</div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
