@@ -88,3 +88,36 @@ export async function trocarSenhaEmail(email: string, senha: string) {
 export function webmailUrl() {
   return process.env.CPANEL_HOST ? `https://${process.env.CPANEL_HOST}:2096` : null;
 }
+
+async function postar(url: string, body: BodyInit) {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `cpanel ${process.env.CPANEL_USER}:${process.env.CPANEL_TOKEN}` },
+    body,
+    cache: "no-store",
+    signal: AbortSignal.timeout(60000),
+  });
+  if (!r.ok) throw new Error(`cPanel respondeu HTTP ${r.status}`);
+  const j = await r.json();
+  if (!j.status) throw new Error((j.errors || ["Erro no cPanel"]).join(" "));
+  return j.data;
+}
+
+/** Pasta do site no Plano M (domínio adicional criado com dir = domínio). */
+export const pastaSite = (dominio: string) => `/home/${process.env.CPANEL_USER}/${dominio}`;
+
+/** Grava um arquivo de texto (ex.: index.html) na pasta do site. */
+export async function salvarArquivo(dominio: string, arquivo: string, conteudo: string) {
+  return postar(`${base()}/execute/Fileman/save_file_content`, new URLSearchParams({ dir: pastaSite(dominio), file: arquivo, content: conteudo, from_charset: "UTF-8", to_charset: "UTF-8" }));
+}
+
+/** Envia arquivos binários (imagens) para uma subpasta do site. */
+export async function enviarArquivos(dominio: string, subpasta: string, arquivos: { nome: string; tipo: string; dados: Uint8Array }[]) {
+  if (!arquivos.length) return;
+  try { await uapi("Fileman", "mkdir", { path: pastaSite(dominio), name: subpasta }); } catch {}
+  const f = new FormData();
+  f.set("dir", `${pastaSite(dominio)}/${subpasta}`);
+  f.set("overwrite", "1");
+  arquivos.forEach((a, i) => f.set(`file-${i + 1}`, new Blob([new Uint8Array(a.dados)], { type: a.tipo }), a.nome));
+  return postar(`${base()}/execute/Fileman/upload_files`, f);
+}

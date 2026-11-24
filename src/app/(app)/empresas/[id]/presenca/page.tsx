@@ -9,9 +9,12 @@ import { registrador } from "@/lib/presenca/dominios";
 import { instagramConfigurado, urlRetorno } from "@/lib/presenca/instagram";
 import { iaConfigurada } from "@/lib/presenca/ia";
 import { urlImagemPost } from "@/lib/presenca/fila";
-import { marcarRegistrado, vincularExistente, removerDominio, apagarCaixa, iniciarInstagram, desconectarInstagram, salvarPostagem, agendarTodos, publicarAgora, excluirPostagem } from "@/app/actions/presenca";
+import { renovar, trocarPlano, marcarRegistrado, vincularExistente, removerDominio, apagarCaixa, iniciarInstagram, desconectarInstagram, salvarPostagem, agendarTodos, publicarAgora, excluirPostagem } from "@/app/actions/presenca";
 import { BotaoExcluir } from "@/components/BotaoExcluir";
-import { BuscaDominio, BotaoHospedar, NovaCaixa, GerarPosts, NovoPost } from "@/components/Presenca";
+import { BuscaDominio, BotaoHospedar, NovaCaixa, GerarPosts, NovoPost, Contratar, PedidoSite, BotaoPublicarSite } from "@/components/Presenca";
+import { PLANOS, PRECO_DOMINIO_BR, PRECO_SITE_IA, plano, espacoTexto } from "@/lib/presenca/planos";
+
+export const maxDuration = 300;
 
 const ST_DOM = { DISPONIVEL: ["Livre", "bg-slate-100 text-slate-700"], PEDIDO: ["Aguardando registro", "bg-amber-100 text-amber-800"], REGISTRADO: ["Registrado", "bg-sky-100 text-sky-800"], HOSPEDADO: ["No ar (Plano M)", "bg-teal-100 text-teal-800"] } as const;
 const ST_POST = { RASCUNHO: ["Rascunho", "bg-slate-100 text-slate-700"], AGENDADA: ["Agendado", "bg-sky-100 text-sky-800"], PUBLICANDO: ["Publicando", "bg-amber-100 text-amber-800"], PUBLICADA: ["Publicado", "bg-teal-100 text-teal-800"], ERRO: ["Erro", "bg-red-100 text-red-800"] } as const;
@@ -27,7 +30,7 @@ export default async function Presenca({ params, searchParams }: { params: Promi
   const e = await db.empresa.findUnique({
     where: { id },
     include: {
-      dominios: { orderBy: { criadoEm: "asc" } },
+      dominios: { orderBy: { criadoEm: "asc" }, include: { versoes: { orderBy: { criadoEm: "desc" }, select: { id: true, pedido: true, criadoEm: true, publicadaEm: true } }, _count: { select: { imagens: true } } } },
       instagramConta: true,
       postagens: { orderBy: [{ agendadaPara: "asc" }, { criadoEm: "asc" }], select: { id: true, tema: true, legenda: true, imagemUrl: true, imagemTipo: true, agendadaPara: true, status: true, erro: true, publicadaEm: true } },
     },
@@ -65,12 +68,22 @@ export default async function Presenca({ params, searchParams }: { params: Promi
         {erroCpanel && <p className="text-sm text-red-700">cPanel: {erroCpanel}</p>}
         {e.dominios.length > 0 && (
           <table className="tabela">
-            <thead><tr><th>Domínio</th><th>Situação</th><th>Registro</th><th></th></tr></thead>
+            <thead><tr><th>Domínio</th><th>Situação</th><th>Plano</th><th>Registro</th><th></th></tr></thead>
             <tbody>
               {e.dominios.map((d) => (
                 <tr key={d.id}>
                   <td><a href={`https://${d.nome}`} target="_blank" className="text-teal-800 hover:underline">{d.nome}</a></td>
                   <td><span className={`tag ${ST_DOM[d.status][1]}`}>{ST_DOM[d.status][0]}</span></td>
+                  <td className="text-xs">
+                    {plano(d.plano) ? (
+                      <form action={trocarPlano.bind(null, d.id)} className="flex items-center gap-1">
+                        <select name="plano" defaultValue={d.plano!} className="input w-36 py-1 text-xs">{Object.entries(PLANOS).map(([k, v]) => <option key={k} value={k}>{v.nome}</option>)}</select>
+                        <button className="text-teal-800 underline">trocar</button>
+                      </form>
+                    ) : "—"}
+                    {d.venceEm && <p className={d.venceEm.getTime() - Date.now() < 30 * 86400000 ? "text-red-700" : "text-slate-500"}>renova em {dataBR(d.venceEm)}</p>}
+                    {d.plano && <form action={renovar.bind(null, d.id)}><button className="text-teal-800 underline">renovar 1 ano</button></form>}
+                  </td>
                   <td className="text-xs text-slate-500">{d.registrador ?? "—"}{d.expiraEm ? ` · vence ${dataBR(d.expiraEm)}` : ""}</td>
                   <td className="space-y-2">
                     {d.status === "PEDIDO" && (
@@ -87,12 +100,18 @@ export default async function Presenca({ params, searchParams }: { params: Promi
             </tbody>
           </table>
         )}
+        <details open={e.dominios.length === 0} className="rounded-lg border border-slate-200 p-4">
+          <summary className="cursor-pointer font-medium text-teal-800">Contratar hospedagem Mídia Certa</summary>
+          <div className="mt-3">
+            <Contratar empresaId={e.id} precoDominio={PRECO_DOMINIO_BR} precoSite={PRECO_SITE_IA} planos={Object.entries(PLANOS).map(([codigo, p]) => ({ codigo, nome: p.nome, anual: p.anual, mensal: p.mensal, espaco: espacoTexto(p.espacoMB), emails: p.emails, desc: p.desc }))} />
+            {!reg.automatico && <p className="mt-2 text-xs text-slate-500">Domínio novo: a compra automática entra quando escolhermos o registrador com API. Por enquanto a equipe registra no Registro.br (no CNPJ da empresa) e clica em &quot;Já registrei&quot;; aí a hospedagem é criada no Plano M. DNS: {cpanel.NAMESERVERS.join(" e ")}.</p>}
+          </div>
+        </details>
         <div className="grid gap-6 lg:grid-cols-2">
           <div>
-            <p className="mb-2 text-sm font-medium">Novo domínio</p>
+            <p className="mb-2 text-sm font-medium">Verificar se um domínio está livre</p>
             <BuscaDominio empresaId={e.id} automatico={reg.automatico} />
-            {!reg.automatico && <p className="mt-2 text-xs text-slate-500">A compra automática entra quando escolhermos o registrador com API. Hoje o pedido fica registrado aqui, a equipe registra no Registro.br e marca &quot;Já registrei&quot;. Depois é só criar a hospedagem e apontar o DNS para {cpanel.NAMESERVERS.join(" e ")}.</p>}
-          </div>
+</div>
           {temCpanel && noPlanoM.length > 0 && (
             <form action={vincularExistente.bind(null, e.id)}>
               <p className="mb-2 text-sm font-medium">Já está no Plano M? Ligar a esta empresa</p>
@@ -107,6 +126,33 @@ export default async function Presenca({ params, searchParams }: { params: Promi
         </div>
       </div>
 
+      {/* SITE COM IA */}
+      {e.dominios.filter((d) => d.siteIA || d.versoes.length > 0).map((d) => (
+        <div key={d.id} className="card space-y-3">
+          <h2 className="font-semibold">Site com IA: {d.nome}</h2>
+          <PedidoSite dominioId={d.id} temVersao={d.versoes.length > 0} />
+          {d._count.imagens > 0 && <p className="text-xs text-slate-500">{d._count.imagens} imagem(ns) guardada(s) para este site.</p>}
+          {d.versoes.length > 0 && (
+            <table className="tabela">
+              <thead><tr><th>Versão</th><th>Pedido</th><th></th></tr></thead>
+              <tbody>
+                {d.versoes.map((v, i) => (
+                  <tr key={v.id}>
+                    <td className="whitespace-nowrap text-xs">{d.versoes.length - i} · {dataHoraBR(v.criadoEm)}{v.publicadaEm && <span className="tag ml-1 bg-teal-100 text-teal-800">publicada</span>}</td>
+                    <td className="text-xs text-slate-600">{v.pedido.slice(0, 140)}{v.pedido.length > 140 ? "…" : ""}</td>
+                    <td className="flex flex-wrap items-start gap-2">
+                      <a href={`/api/site/${v.id}/`} target="_blank" className="btn-sec">Prévia</a>
+                      {d.status === "HOSPEDADO" && temCpanel ? <BotaoPublicarSite versaoId={v.id} /> : <span className="text-xs text-slate-500">publica quando a hospedagem estiver ativa</span>}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          {!iaConfigurada() && <Pendente falta="ANTHROPIC_API_KEY" />}
+        </div>
+      ))}
+
       {/* E-MAILS */}
       {e.dominios.some((d) => d.status === "HOSPEDADO") && (
         <div className="card space-y-4">
@@ -114,7 +160,7 @@ export default async function Presenca({ params, searchParams }: { params: Promi
           {!temCpanel && <Pendente falta="CPANEL_TOKEN" />}
           {e.dominios.filter((d) => d.status === "HOSPEDADO").map((d) => (
             <div key={d.id} className="space-y-2">
-              <p className="text-sm font-medium">{d.nome}</p>
+              <p className="text-sm font-medium">{d.nome}{plano(d.plano) && <span className="ml-2 text-xs font-normal text-slate-500">plano {plano(d.plano)!.nome}: até {plano(d.plano)!.emails} caixa(s)</span>}</p>
               {(emails.get(d.nome) ?? []).length > 0 ? (
                 <table className="tabela">
                   <thead><tr><th>E-mail</th><th>Uso</th><th></th></tr></thead>

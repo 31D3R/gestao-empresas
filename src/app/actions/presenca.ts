@@ -12,6 +12,8 @@ import * as cpanel from "@/lib/presenca/cpanel";
 import { instagramConfigurado, urlAutorizar } from "@/lib/presenca/instagram";
 import { gerarPosts, lerSite } from "@/lib/presenca/ia";
 import { rodarFila } from "@/lib/presenca/fila";
+import { PLANOS, PRECO_DOMINIO_BR, PRECO_SITE_IA, plano as dadosPlano, type CodigoPlano } from "@/lib/presenca/planos";
+import { gerarHtml } from "@/lib/presenca/siteia";
 
 const MKT = ["ADMIN", "MARKETING"] as const;
 export type Estado = { ok?: boolean; erro?: string; msg?: string; senha?: string; livre?: boolean | null; dominio?: string; link?: string } | null;
@@ -97,6 +99,12 @@ export async function criarCaixa(dominio: string, empresaId: string, _: Estado, 
   await exigir(...MKT);
   const usuario = String(form.get("usuario") || "").trim().toLowerCase();
   if (!/^[a-z0-9._-]{1,64}$/.test(usuario)) return { erro: "Nome da caixa inválido (use letras, números, ponto, hífen)." };
+  const dom = await db.dominio.findUnique({ where: { nome: dominio } });
+  const lim = dadosPlano(dom?.plano)?.emails;
+  if (lim) {
+    const atuais = await cpanel.listarEmails(dominio).catch(() => []);
+    if (atuais.length >= lim) return { erro: `O plano ${dadosPlano(dom?.plano)!.nome} permite ${lim} caixa(s). Troque de plano para criar mais.` };
+  }
   const senha = String(form.get("senha") || "") || randomBytes(9).toString("base64url") + "#9";
   try {
     await cpanel.criarEmail(usuario, dominio, senha, Number(form.get("cota") || 1024));
@@ -220,4 +228,132 @@ export async function excluirPostagem(id: string) {
   await exigir(...MKT);
   const p = await db.postagem.delete({ where: { id } });
   revalidatePath(caminho(p.empresaId));
+}
+
+// ---------- Contratação (como na loja Mídia Certa) ----------
+
+
+/**
+ * Contrata hospedagem: registra domínio + plano, lança as despesas no financeiro da empresa
+ * e, se o domínio já for da empresa e o cPanel estiver configurado, ativa na hora.
+ */
+export async function contratar(empresaId: string, _: Estado, form: FormData): Promise<Estado> {
+  await exigir(...MKT);
+  const d = normalizarDominio(String(form.get("dominio") || ""));
+  if (!dominioValido(d)) return { erro: "Domínio inválido. Exemplo: minhaempresa.com.br" };
+  const codigo = String(form.get("plano")) as CodigoPlano;
+  const p = PLANOS[codigo];
+  if (!p) return { erro: "Escolha um plano." };
+  const jaTenho = form.get("jaTenho") === "on";
+  const comSite = form.get("siteIA") === "on";
+  const existente = await db.dominio.findUnique({ where: { nome: d } });
+  if (existente?.contratadoEm) return { erro: `${d} já tem hospedagem contratada.` };
+  if (!jaTenho) {
+    const livre = await dominioLivre(d);
+    if (livre === false) return { erro: `${d} já tem dono. Se é da empresa, marque "já tenho este domínio".` };
+  }
+  const hoje = new Date();
+  const umAno = new Date(hoje.getTime() + 365 * 86400000);
+  const venc = new Date(hoje.getTime() + 3 * 86400000);
+  const reg = registrador();
+  const dom = await db.dominio.upsert({
+    where: { nome: d },
+    create: { empresaId, nome: d, status: jaTenho ? "REGISTRADO" : "PEDIDO", registrador: jaTenho ? "já existente" : reg.nome, plano: codigo, contratadoEm: hoje, venceEm: umAno, siteIA: comSite },
+    update: { empresaId, plano: codigo, contratadoEm: hoje, venceEm: umAno, siteIA: comSite },
+  });
+  const despesas = [
+    { descricao: `Hospedagem Mídia Certa, plano ${p.nome} (anual): ${d}`, valor: p.anual },
+    ...(!jaTenho && d.endsWith(".br") ? [{ descricao: `Registro do domínio ${d} (1 ano)`, valor: PRECO_DOMINIO_BR }] : []),
+    ...(comSite && PRECO_SITE_IA > 0 ? [{ descricao: `Site com IA Mídia Certa: ${d}`, valor: PRECO_SITE_IA }] : []),
+  ];
+  await db.lancamento.createMany({
+    data: despesas.map((x) => ({ empresaId, tipo: "DESPESA" as const, categoria: "Marketing", descricao: x.descricao, valor: x.valor, data: hoje, vencimento: venc, pago: false })),
+  });
+  let msg = `Contratado: ${d}, plano ${p.nome}. ${despesas.length} despesa(s) lançada(s) no financeiro.`;
+  if (jaTenho && cpanel.cpanelConfigurado()) {
+    try {
+      await cpanel.hospedarDominio(d);
+      await db.dominio.update({ where: { id: dom.id }, data: { status: "HOSPEDADO", hospedadoEm: new Date(), pasta: d } });
+      await db.empresa.update({ where: { id: empresaId }, data: { siteUrl: `https://${d}` } });
+      msg += ` Hospedagem ativada. Aponte o DNS para ${cpanel.NAMESERVERS.join(" e ")}.`;
+    } catch (e) {
+      msg += ` A ativação automática falhou (${erroDe(e)}); use "Criar hospedagem" depois.`;
+    }
+  } else if (!jaTenho) {
+    msg += " Registre o domínio no Registro.br e clique em \"Já registrei\" para ativar.";
+  }
+  revalidatePath(caminho(empresaId));
+  revalidatePath(`/empresas/${empresaId}/financeiro`);
+  return { ok: true, msg };
+}
+
+export async function renovar(id: string) {
+  await exigir(...MKT);
+  const d = await db.dominio.findUniqueOrThrow({ where: { id } });
+  const p = dadosPlano(d.plano);
+  if (!p) return;
+  const base = d.venceEm && d.venceEm > new Date() ? d.venceEm : new Date();
+  await db.dominio.update({ where: { id }, data: { venceEm: new Date(base.getTime() + 365 * 86400000) } });
+  await db.lancamento.create({ data: { empresaId: d.empresaId, tipo: "DESPESA", categoria: "Marketing", descricao: `Renovação hospedagem Mídia Certa, plano ${p.nome}: ${d.nome}`, valor: p.anual, data: new Date(), vencimento: base, pago: false } });
+  revalidatePath(caminho(d.empresaId));
+}
+
+export async function trocarPlano(id: string, form: FormData) {
+  await exigir(...MKT);
+  const codigo = String(form.get("plano"));
+  if (!(codigo in PLANOS)) return;
+  const d = await db.dominio.update({ where: { id }, data: { plano: codigo } });
+  revalidatePath(caminho(d.empresaId));
+}
+
+// ---------- Site com IA ----------
+
+async function guardarImagens(dominioId: string, form: FormData) {
+  const arquivos = form.getAll("imagens").filter((f): f is File => f instanceof File && f.size > 0);
+  for (const f of arquivos) {
+    if (f.size > 4 * 1024 * 1024) throw new Error(`${f.name} passa de 4 MB.`);
+    const nome = f.name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9.]+/g, "-").replace(/^-+/, "");
+    const dados = Buffer.from(await f.arrayBuffer());
+    await db.imagemSite.upsert({ where: { dominioId_nome: { dominioId, nome } }, create: { dominioId, nome, tipo: f.type || "image/jpeg", dados }, update: { tipo: f.type || "image/jpeg", dados } });
+  }
+}
+
+export async function pedirSite(dominioId: string, _: Estado, form: FormData): Promise<Estado> {
+  await exigir(...MKT);
+  const pedido = String(form.get("pedido") || "").trim();
+  if (!pedido) return { erro: "Escreva o que você quer no site (ou o ajuste)." };
+  const dom = await db.dominio.findUniqueOrThrow({ where: { id: dominioId }, include: { empresa: true, versoes: { orderBy: { criadoEm: "desc" }, take: 1 } } });
+  try {
+    await guardarImagens(dominioId, form);
+    const imagens = await db.imagemSite.findMany({ where: { dominioId }, orderBy: { criadoEm: "asc" } });
+    const e = dom.empresa;
+    const dadosEmpresa = [
+      `Nome: ${e.nomeFantasia || e.razaoSocial}`, `Razão social: ${e.razaoSocial}`, `Domínio: ${dom.nome}`,
+      e.telefone && `Telefone/WhatsApp: ${e.telefone}`, e.email && `E-mail: ${e.email}`,
+      `Endereço: ${[e.logradouro, e.numero, e.bairro, e.municipio, e.uf].filter(Boolean).join(", ")}`,
+      e.cnaePrincipal && `Atividade: ${e.cnaePrincipal}`, e.instagram && `Instagram: ${e.instagram}`,
+    ].filter(Boolean).join("\n");
+    const anterior = form.get("novo") === "on" ? null : dom.versoes[0]?.html;
+    const { html, custoUsd } = await gerarHtml({ pedido, dadosEmpresa, imagens, htmlAnterior: anterior });
+    await db.versaoSite.create({ data: { dominioId, pedido: pedido.slice(0, 4000), html, custoUsd } });
+  } catch (err) {
+    return { erro: erroDe(err) };
+  }
+  revalidatePath(caminho(dom.empresaId));
+  return { ok: true, msg: "Nova versão pronta. Veja a prévia e publique quando gostar." };
+}
+
+export async function publicarVersao(versaoId: string): Promise<Estado> {
+  await exigir(...MKT);
+  const v = await db.versaoSite.findUniqueOrThrow({ where: { id: versaoId }, include: { dominio: { include: { imagens: true } } } });
+  if (v.dominio.status !== "HOSPEDADO") return { erro: "Crie a hospedagem do domínio antes de publicar." };
+  try {
+    await cpanel.enviarArquivos(v.dominio.nome, "img", v.dominio.imagens.map((i) => ({ nome: i.nome, tipo: i.tipo, dados: i.dados })));
+    await cpanel.salvarArquivo(v.dominio.nome, "index.html", v.html);
+  } catch (err) {
+    return { erro: erroDe(err) };
+  }
+  await db.versaoSite.update({ where: { id: versaoId }, data: { publicadaEm: new Date() } });
+  revalidatePath(caminho(v.dominio.empresaId));
+  return { ok: true, msg: `Publicado em https://${v.dominio.nome}` };
 }

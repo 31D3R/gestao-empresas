@@ -32,6 +32,9 @@ Variáveis na Vercel (Settings > Environment Variables):
 |---|---|
 | `CPANEL_HOST` = `br132.hostgator.com.br`, `CPANEL_USER` = `elderc98`, `CPANEL_TOKEN` | criar hospedagem e e-mails no Plano M (token em cPanel > Segurança > Gerenciar tokens de API) |
 | `IG_APP_ID`, `IG_APP_SECRET` | conectar Instagram (app da Meta com "API do Instagram com login do Instagram"; URL de retorno `https://gestao-empresas-eight.vercel.app/api/instagram/retorno`) |
-| `ANTHROPIC_API_KEY` | gerar posts com IA a partir do site |
+| `ANTHROPIC_API_KEY` | gerar posts e o site com IA |
+| `SITE_IA_PRECO` (opcional) | valor cobrado pelo site com IA, lançado como despesa na contratação |
 
 Publicação agendada: `GET /api/cron/instagram` publica os posts cuja hora já passou. A Vercel chama 1x/dia (plano grátis); para publicar na hora certa, um cron do cPanel a cada 15 min: `curl -s https://gestao-empresas-eight.vercel.app/api/cron/instagram`.
+
+Contratação: escolhe plano Mídia Certa (Econômico R$ 119,88, Intermediário R$ 359,88, Pleno R$ 599,88 por ano) e domínio; o sistema lança as despesas como contas a pagar no financeiro da empresa e, se o domínio já for da empresa, cria a hospedagem no Plano M na hora. O limite de e-mails do plano é respeitado.

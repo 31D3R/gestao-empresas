@@ -266,8 +266,37 @@ model Dominio {
   hospedadoEm  DateTime?
   pasta        String?
   observacao   String?
+  plano        String?       // ECONOMICO | INTERMEDIARIO | PLENO (planos Mídia Certa)
+  contratadoEm DateTime?
+  venceEm      DateTime?     // renovação anual da hospedagem
+  siteIA       Boolean       @default(false)
   criadoEm     DateTime      @default(now())
   empresa      Empresa       @relation(fields: [empresaId], references: [id], onDelete: Cascade)
+  versoes      VersaoSite[]
+  imagens      ImagemSite[]
+}
+
+model VersaoSite {
+  id          String    @id @default(cuid())
+  dominioId   String
+  pedido      String
+  html        String
+  custoUsd    Decimal?  @db.Decimal(8, 4)
+  publicadaEm DateTime?
+  criadoEm    DateTime  @default(now())
+  dominio     Dominio   @relation(fields: [dominioId], references: [id], onDelete: Cascade)
+}
+
+model ImagemSite {
+  id        String   @id @default(cuid())
+  dominioId String
+  nome      String
+  tipo      String
+  dados     Bytes
+  criadoEm  DateTime @default(now())
+  dominio   Dominio  @relation(fields: [dominioId], references: [id], onDelete: Cascade)
+
+  @@unique([dominioId, nome])
 }
 
 model ContaInstagram {

@@ -2,7 +2,7 @@
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import type { Estado } from "@/app/actions/presenca";
-import { verificarDominio, pedirDominio, hospedar, criarCaixa, gerarComIA, criarPostagem } from "@/app/actions/presenca";
+import { verificarDominio, pedirDominio, hospedar, criarCaixa, gerarComIA, criarPostagem, contratar, pedirSite, publicarVersao } from "@/app/actions/presenca";
 
 function Enviar({ children, cls = "btn" }: { children: React.ReactNode; cls?: string }) {
   const { pending } = useFormStatus();
@@ -93,6 +93,65 @@ export function NovoPost({ empresaId }: { empresaId: string }) {
       <div><label className="label">ou link da imagem</label><input name="imagemUrl" type="url" className="input" /></div>
       <div><label className="label">Publicar em (vazio = rascunho)</label><input name="agendadaPara" type="datetime-local" className="input" /></div>
       <div className="flex items-end gap-3"><Enviar>Salvar post</Enviar><Aviso e={e} /></div>
+    </form>
+  );
+}
+
+
+type PlanoUI = { codigo: string; nome: string; anual: number; mensal: number; espaco: string; emails: number; desc: string };
+const brl = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+export function Contratar({ empresaId, planos, precoDominio, precoSite }: { empresaId: string; planos: PlanoUI[]; precoDominio: number; precoSite: number }) {
+  const [e, acao] = useActionState(contratar.bind(null, empresaId), null);
+  return (
+    <form action={acao} className="space-y-3">
+      <div className="grid gap-3 md:grid-cols-3">
+        {planos.map((p, i) => (
+          <label key={p.codigo} className="cursor-pointer rounded-xl border border-slate-200 p-4 has-[:checked]:border-teal-600 has-[:checked]:ring-1 has-[:checked]:ring-teal-600">
+            <input type="radio" name="plano" value={p.codigo} defaultChecked={i === 1} className="sr-only" />
+            <p className="font-semibold">{p.nome}{i === 1 && <span className="tag ml-2 bg-teal-100 text-teal-800">mais escolhido</span>}</p>
+            <p className="text-xs text-slate-500">{p.desc}</p>
+            <p className="mt-2 text-xl font-semibold">{brl(p.mensal)}<span className="text-sm font-normal">/mês</span></p>
+            <p className="text-xs text-slate-500">{brl(p.anual)} por ano</p>
+            <ul className="mt-2 space-y-0.5 text-xs"><li>{p.espaco} de espaço</li><li>{p.emails} conta(s) de e-mail</li><li>SSL grátis e webmail</li></ul>
+          </label>
+        ))}
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <div><label className="label">Domínio</label><input name="dominio" placeholder="minhaempresa.com.br" className="input" required /></div>
+        <div className="flex flex-col justify-end gap-1 text-sm">
+          <label className="flex items-center gap-2"><input type="checkbox" name="jaTenho" /> A empresa já tem este domínio</label>
+          <label className="flex items-center gap-2"><input type="checkbox" name="siteIA" defaultChecked /> Incluir site com IA{precoSite > 0 ? ` (${brl(precoSite)})` : ""}</label>
+        </div>
+      </div>
+      <p className="text-xs text-slate-500">Ao contratar, as despesas entram no financeiro da empresa como contas a pagar (plano anual{precoDominio ? `, registro .br ${brl(precoDominio)}/ano quando o domínio for novo` : ""}{precoSite > 0 ? ", site com IA" : ""}).</p>
+      <div className="flex flex-wrap items-center gap-3"><Enviar>Contratar</Enviar><Aviso e={e} /></div>
+    </form>
+  );
+}
+
+export function PedidoSite({ dominioId, temVersao }: { dominioId: string; temVersao: boolean }) {
+  const [e, acao] = useActionState(pedirSite.bind(null, dominioId), null);
+  return (
+    <form action={acao} className="space-y-2">
+      <textarea name="pedido" rows={4} className="input" placeholder={temVersao ? "Peça um ajuste: troque a foto do topo, mude a cor do botão, acrescente a seção de serviços..." : "Conte sobre a empresa e como quer o site: o que faz, público, serviços, diferenciais, cores, WhatsApp..."} required />
+      <div className="flex flex-wrap items-center gap-3">
+        <input name="imagens" type="file" accept="image/*" multiple className="input w-auto text-xs" />
+        {temVersao && <label className="flex items-center gap-2 text-xs"><input type="checkbox" name="novo" /> começar do zero</label>}
+        <Enviar>{temVersao ? "Pedir ajuste" : "Criar site com IA"}</Enviar>
+      </div>
+      <p className="text-xs text-slate-500">Envie o logotipo e fotos (até 4 MB cada). A IA leva de 1 a 3 minutos.</p>
+      <Aviso e={e} />
+    </form>
+  );
+}
+
+export function BotaoPublicarSite({ versaoId }: { versaoId: string }) {
+  const [e, acao] = useActionState(publicarVersao.bind(null, versaoId), null);
+  return (
+    <form action={acao} className="inline-flex flex-col gap-1">
+      <Enviar cls="btn-sec">Publicar</Enviar>
+      <Aviso e={e} />
     </form>
   );
 }
