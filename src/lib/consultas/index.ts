@@ -1,16 +1,15 @@
 import type { ProvedorCNPJ, ProvedorCredito } from "./tipos";
-import { brasilApi } from "./brasilapi";
+import { fontesGratuitas } from "./gratuitos";
 import { mockCNPJ, mockCredito } from "./mock";
 
 // Escolha do provedor por variável de ambiente. Novos provedores pagos entram aqui.
 export function provedorCNPJ(): ProvedorCNPJ {
   switch (process.env.CNPJ_PROVIDER || process.env.CONSULTA_PROVIDER) {
-    case "brasilapi":
-      return brasilApi;
     case "mock":
       return mockCNPJ;
     default:
-      return brasilApi;
+      // BrasilAPI, CNPJ.ws e ReceitaWS, nessa ordem (todos gratuitos)
+      return fontesGratuitas;
   }
 }
 
