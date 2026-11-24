@@ -103,3 +103,14 @@ export async function consultarCredito(id: string) {
   revalidatePath(`/socios/${id}`);
   return r.ok ? { ok: "Consulta realizada." } : { erro: r.erro };
 }
+
+/** Exclui o sócio, seus vínculos com empresas e o acesso dele ao portal. Só administrador. */
+export async function excluirSocio(id: string) {
+  await exigir("ADMIN");
+  await db.$transaction([
+    db.usuario.deleteMany({ where: { socioId: id, perfil: "SOCIO" } }),
+    db.socio.delete({ where: { id } }),
+  ]);
+  revalidatePath("/socios");
+  redirect("/socios");
+}

@@ -114,3 +114,11 @@ export async function desvincularSocio(empresaId: string, socioId: string) {
   await db.empresaSocio.delete({ where: { empresaId_socioId: { empresaId, socioId } } });
   revalidatePath(`/empresas/${empresaId}`);
 }
+
+/** Exclui a empresa e tudo ligado a ela (financeiro, certidões, vínculos). Só administrador. */
+export async function excluirEmpresa(id: string) {
+  await exigir("ADMIN");
+  await db.empresa.delete({ where: { id } });
+  revalidatePath("/empresas");
+  redirect("/empresas");
+}

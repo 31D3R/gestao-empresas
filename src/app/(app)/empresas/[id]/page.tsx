@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { exigir, EQUIPE } from "@/lib/auth";
 import { brl, dataBR, formatarCNPJ, formatarCPF } from "@/lib/documentos";
-import { consultarCNPJ, vincularSocio, desvincularSocio } from "@/app/actions/empresas";
+import { consultarCNPJ, vincularSocio, desvincularSocio, excluirEmpresa } from "@/app/actions/empresas";
+import { BotaoExcluir } from "@/components/BotaoExcluir";
 import { FormEmpresa } from "@/components/FormEmpresa";
 import { Certidoes } from "@/components/Certidoes";
 import { PainelSaude } from "@/components/PainelSaude";
@@ -11,7 +12,7 @@ import { saudeEmpresa } from "@/lib/saude";
 import type { SocioQSA } from "@/lib/consultas";
 
 export default async function Empresa({ params }: { params: Promise<{ id: string }> }) {
-  await exigir(...EQUIPE);
+  const sessao = await exigir(...EQUIPE);
   const { id } = await params;
   const e = await db.empresa.findUnique({
     where: { id },
@@ -37,7 +38,7 @@ export default async function Empresa({ params }: { params: Promise<{ id: string
           <h1 className="h1">{e.nomeFantasia || e.razaoSocial}</h1>
           <p className="text-sm text-slate-500">{e.razaoSocial} · {formatarCNPJ(e.cnpj)}</p>
         </div>
-        <div className="flex gap-2"><Link href={`/empresas/${e.id}/financeiro`} className="btn">Financeiro</Link><form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form></div>
+        <div className="flex gap-2"><Link href={`/empresas/${e.id}/financeiro`} className="btn">Financeiro</Link><form action={atualizar}><button className="btn-sec">Atualizar dados da Receita</button></form>{sessao.perfil === "ADMIN" && <BotaoExcluir acao={excluirEmpresa.bind(null, e.id)} aviso={`Excluir ${e.razaoSocial}? Todo o financeiro, as certidões e os vínculos com sócios desta empresa serão apagados. Os cadastros dos sócios continuam. Não dá para desfazer.`} />}</div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">

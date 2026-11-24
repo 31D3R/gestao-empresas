@@ -5,10 +5,12 @@ import { exigir, EQUIPE } from "@/lib/auth";
 import { brl, dataBR, formatarCNPJ, formatarCPF } from "@/lib/documentos";
 import { FormSocio } from "@/components/FormSocio";
 import { BotaoCredito } from "@/components/BotaoCredito";
+import { BotaoExcluir } from "@/components/BotaoExcluir";
+import { excluirSocio } from "@/app/actions/socios";
 import type { ResultadoCredito } from "@/lib/consultas";
 
 export default async function Socio({ params }: { params: Promise<{ id: string }> }) {
-  await exigir(...EQUIPE);
+  const sessao = await exigir(...EQUIPE);
   const { id } = await params;
   const s = await db.socio.findUnique({
     where: { id },
@@ -29,10 +31,13 @@ export default async function Socio({ params }: { params: Promise<{ id: string }
 
   return (
     <div className="space-y-6">
-      <div>
-        <Link href="/socios" className="text-sm text-slate-500">← Sócios</Link>
-        <h1 className="h1">{s.nome}</h1>
-        <p className="text-sm text-slate-500">CPF {formatarCPF(s.cpf)}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Link href="/socios" className="text-sm text-slate-500">← Sócios</Link>
+          <h1 className="h1">{s.nome}</h1>
+          <p className="text-sm text-slate-500">CPF {formatarCPF(s.cpf)}</p>
+        </div>
+        {sessao.perfil === "ADMIN" && <BotaoExcluir acao={excluirSocio.bind(null, s.id)} aviso={`Excluir ${s.nome}? O sócio sai de todas as empresas e o acesso dele ao portal é apagado. As empresas continuam. Não dá para desfazer.`} />}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
